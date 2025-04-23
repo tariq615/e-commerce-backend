@@ -1,0 +1,27 @@
+{
+  "name": "e-commerce-backend",
+  "version": "1.0.0",
+  "description": "e-commerce",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node dist/app.js",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "dev": "nodemon dist/app.js"
+  },
+  "author": "Tariq",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "mongoose": "^8.13.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.14.1",
+    "nodemon": "^3.1.9",
+    "typescript": "^5.8.3"
+  }
+}
