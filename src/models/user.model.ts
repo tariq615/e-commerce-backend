@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import validator from "validator";
 
 interface IUser extends Document{
   _id: string;
@@ -27,7 +28,8 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: true,
+      unique: [true, "Email already exists"],
+      validate: validator.default.isEmail
     },
     photo: {
       type: String,
