@@ -10,18 +10,22 @@ const newUser = TryCatch(
     res: Response,
     next: NextFunction
   ) => {
-    next(new ErrorHandler("This is test error", 402));
     const { _id, name, email, photo, gender, dob } = req.body;
 
-    if (!_id || !name || !email || !photo) {
+    let user = await userModel.findById(_id);
 
-      res.status(400).json({
-        status: "fail",
-        message: "Please provide all required fields",
+    if (user) {
+      res.status(200).json({
+        success: true,
+        message: `welcome ${user.name}`,
       });
     }
 
-    const user = await userModel.create({
+    if (!_id || !name || !email || !photo || !gender || !dob) {
+      next(new ErrorHandler("provide all fields", 400));
+    }
+
+    user = await userModel.create({
       _id,
       name,
       email,
@@ -37,4 +41,47 @@ const newUser = TryCatch(
   }
 );
 
-export { newUser };
+const getAllUsers = TryCatch(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const users = await userModel.find({});
+
+    res.status(200).json({
+      success: true,
+      users,
+    });
+  }
+);
+
+const getUser = TryCatch(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    const user = await userModel.findById(id);
+
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      user,
+    });
+  }
+)
+
+const deleteUser = TryCatch(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    const user = await userModel.findByIdAndDelete(id);
+
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  })
+export { newUser, getAllUsers, getUser, deleteUser };
