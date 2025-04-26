@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 interface IProduct {
     name: string;
-    photo: string;
+    image: string;
     price: number;
     stock: number;
     category: string;

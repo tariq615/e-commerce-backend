@@ -20,7 +20,7 @@ app.use(
   })
 );
 app.use(express.json({ limit: "16kb" })); // for accepting the data from (Apis, axios, fetch, form, get post etc)
-
+app.use("/uploads", express.static("uploads"));
 
 // import routes
 import userRouter from './routes/user.route.js';
