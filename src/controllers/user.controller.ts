@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { NewUserRequestBody } from "../types/user.types.js";
+import { NewUserRequestBody } from "../types/types.js";
 import { userModel } from "../models/user.model.js";
 import { TryCatch } from "../middlewares/error.js";
 import ErrorHandler from "../utils/utility-class.js";

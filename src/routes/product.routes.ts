@@ -7,6 +7,7 @@ import {
   getSingleProduct,
   updateProduct,
   deleteProduct,
+  searchProducts
 } from "../controllers/product.controller.js";
 import { singleUpload } from "../middlewares/multer.js";
 import { adminOnly } from "../middlewares/auth.js";
@@ -19,13 +20,14 @@ router.route("/latest").get(getLatestProducts);
 
 router.route("/categories").get(getAllCategories);
 
-router.route("/admin-products").get(getAdminProducts);
+router.route("/admin-products").get(adminOnly, getAdminProducts);
+
+router.route("/searchs").get(searchProducts)
 
 router.route("/:id").get(getSingleProduct);
 
 router.route("/update/:id").put(adminOnly, singleUpload, updateProduct);
 
 router.route("/delete/:id").delete(adminOnly, deleteProduct);
-
 
 export default router;

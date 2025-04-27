@@ -6,20 +6,22 @@ import express from 'express';
 import cors from 'cors';
 import { connectDB } from "./utils/features.js";
 import { errorMiddleware } from "./middlewares/error.js";
-
+import NodeCache from "node-cache";
 
 connectDB();
+
+export const myCache = new NodeCache()
 const port = process.env.PORT || 3000;
 
 const app = express();
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN, //which frontend is allowed
-    credentials: true, // for allowing the cookies and authentication
+    origin: process.env.CORS_ORIGIN, 
+    credentials: true, 
   })
 );
-app.use(express.json({ limit: "16kb" })); // for accepting the data from (Apis, axios, fetch, form, get post etc)
+app.use(express.json({ limit: "16kb" })); 
 app.use("/uploads", express.static("uploads"));
 
 // import routes
