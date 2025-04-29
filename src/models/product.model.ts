@@ -11,7 +11,7 @@ interface IProduct {
     // numOfReviews: number;
 }
 
-const schema = new mongoose.Schema(
+const postSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -67,4 +67,4 @@ const schema = new mongoose.Schema(
   }
 );
 
-export const productModel = mongoose.model<IProduct>("Product", schema);
+export const productModel = mongoose.model<IProduct>("Product", postSchema);

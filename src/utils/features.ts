@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
-import { InvalidateCacheProps } from "../types/types.js";
+import { InvalidateCacheProps, orderItemsType } from "../types/types.js";
 import { productModel } from "../models/product.model.js";
 import { myCache } from "../app.js";
+// import ErrorHandler from "./utility-class.js";
 
 export const connectDB = async () => {
   try {
@@ -43,5 +44,15 @@ export const invalidateCache = async ({
   }
 
   if (admin) {
+  }
+};
+
+export const reduceStock = async (orderItems: orderItemsType[]) => {
+  for (let i = 0; i < orderItems.length; i++) {
+    const orderItem = orderItems[i];
+    const product = await productModel.findById(orderItem.productId);
+    if (!product) throw new Error("Product not found");
+    product.stock -= orderItem.quantity;
+    await product.save();
   }
 };

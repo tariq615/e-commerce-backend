@@ -1,0 +1,172 @@
+import { Request } from "express";
+import { TryCatch } from "../middlewares/error.js";
+import { orderModel } from "../models/order.model.js";
+import { invalidateCache, reduceStock } from "../utils/features.js";
+import ErrorHandler from "../utils/utility-class.js";
+import { NewOrderRequestBody } from "../types/types.js";
+import { myCache } from "../app.js";
+
+const myOrders = TryCatch(async (req, res, next) => {
+  const { id: user } = req.query;
+
+  const key = `my-orders${user}`;
+  let orders = [];
+
+  if (myCache.has(key)) {
+    orders = JSON.parse(myCache.get(key) as string);
+  } else {
+    orders = await orderModel.find({ user });
+    myCache.set(key, JSON.stringify(orders));
+  }
+  res.status(200).json({
+    sucess: true,
+    orders,
+  });
+});
+
+const allOrders = TryCatch(async (req, res, next) => {
+  let orders = [];
+
+  if (myCache.has("all-orders")) {
+    orders = JSON.parse(myCache.get("all-orders") as string);
+  } else {
+    orders = await orderModel.find().populate("user", "name");
+    myCache.set("all-orders", JSON.stringify(orders));
+  }
+  res.status(200).json({
+    sucess: true,
+    orders,
+  });
+});
+
+const getSingleOrder = TryCatch(async (req, res, next) => {
+  const { id } = req.params;
+  const key = `order-${id}`;
+  let order;
+
+  if (myCache.has(key)) {
+    order = JSON.parse(myCache.get(key) as string);
+  } else {
+    order = await orderModel.findById(id).populate("user", "name");
+    myCache.set(key, JSON.stringify(order));
+  }
+  res.status(200).json({
+    sucess: true,
+    order,
+  });
+});
+
+const newOrder = TryCatch(
+  async (req: Request<{}, {}, NewOrderRequestBody>, res, next) => {
+    const {
+      shippingInfo,
+      orderItems,
+      user,
+      subtotal,
+      tax,
+      shippingCharges,
+      discount,
+      total,
+    } = req.body;
+
+    if (
+      !shippingInfo ||
+      !orderItems ||
+      !user ||
+      !subtotal ||
+      !tax ||
+      !shippingCharges ||
+      !discount ||
+      !total
+    )
+      return next(new ErrorHandler("Please fill all fields", 400));
+
+    const order = await orderModel.create({
+      shippingInfo,
+      orderItems,
+      user,
+      subtotal,
+      tax,
+      shippingCharges,
+      discount,
+      total,
+    });
+
+    if (!order) return next(new ErrorHandler("Order not created", 500));
+
+    await reduceStock(orderItems);
+
+    await invalidateCache({
+      product: true,
+      order: true,
+      admin: true,
+    });
+
+    res.status(201).json({
+      success: true,
+      order,
+    });
+  }
+);
+
+const processOrder = TryCatch(async (req, res, next) => {
+  const { id } = req.params;
+
+  const order = await orderModel.findById(id);
+
+  if (!order) return next(new ErrorHandler("Order not found", 404));
+
+  switch (order.status) {
+    case "Processing":
+      order.status = "Shipped";
+      break;
+    case "Shipped":
+      order.status = "Delivered";
+      break;
+    default:
+      "Delivered";
+      break;
+  }
+
+  await order.save();
+
+  await invalidateCache({
+    product: false,
+    order: true,
+    admin: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    order,
+  });
+});
+
+const deleteOrder = TryCatch(async (req, res, next) => {
+  const { id } = req.params;
+
+  const order = await orderModel.findById(id);
+  if (!order) return next(new ErrorHandler("Order Not Found", 404));
+
+  await order.deleteOne();
+
+  await invalidateCache({
+    product: true,
+    order: true,
+    admin: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Order deleted successfully",
+  });
+});
+
+export {
+  newOrder,
+  myOrders,
+  allOrders,
+  getSingleOrder,
+  processOrder,
+  deleteOrder,
+};
