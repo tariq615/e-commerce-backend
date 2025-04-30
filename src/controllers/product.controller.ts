@@ -139,7 +139,7 @@ const updateProduct = TryCatch(async (req, res, next) => {
 
   await product.save(); // ✅ await the save
 
-  await invalidateCache({ product: true });
+  await invalidateCache({ product: true, productId: id });
 
   rm(oldImage, (err) => {
     if (err) console.error("Failed to delete old image:", err);
@@ -162,7 +162,7 @@ const deleteProduct = TryCatch(async (req, res, next) => {
   const deleted = await productModel.findByIdAndDelete(id);
   if (!deleted) return next(new ErrorHandler("Product deletion failed", 500));
 
-  await invalidateCache({ product: true });
+  await invalidateCache({ product: true, productId: id });
 
   rm(image, (err) => {
     if (err) console.error("Failed to delete image:", err);

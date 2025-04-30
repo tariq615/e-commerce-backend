@@ -9,7 +9,7 @@ import { myCache } from "../app.js";
 const myOrders = TryCatch(async (req, res, next) => {
   const { id: user } = req.query;
 
-  const key = `my-orders${user}`;
+  const key = `my-orders-${user}`;
   let orders = [];
 
   if (myCache.has(key)) {
@@ -48,6 +48,7 @@ const getSingleOrder = TryCatch(async (req, res, next) => {
     order = JSON.parse(myCache.get(key) as string);
   } else {
     order = await orderModel.findById(id).populate("user", "name");
+    if (!order) return next(new ErrorHandler("Order not found", 404));
     myCache.set(key, JSON.stringify(order));
   }
   res.status(200).json({
@@ -100,6 +101,8 @@ const newOrder = TryCatch(
       product: true,
       order: true,
       admin: true,
+      userId: user,
+      productId: order.orderItems.map((i) => String(i.productId)),
     });
 
     res.status(201).json({
@@ -134,6 +137,8 @@ const processOrder = TryCatch(async (req, res, next) => {
     product: false,
     order: true,
     admin: true,
+    userId: order.user,
+    orderId: id,
   });
 
   res.status(200).json({
@@ -151,9 +156,11 @@ const deleteOrder = TryCatch(async (req, res, next) => {
   await order.deleteOne();
 
   await invalidateCache({
-    product: true,
+    product: false,
     order: true,
     admin: true,
+    userId: order.user,
+    orderId: id,
   });
 
   res.status(200).json({
