@@ -7,6 +7,8 @@ import cors from 'cors';
 import { connectDB } from "./utils/features.js";
 import { errorMiddleware } from "./middlewares/error.js";
 import NodeCache from "node-cache";
+import morgan from "morgan";
+
 
 connectDB();
 
@@ -28,12 +30,13 @@ app.use(morgan("dev"));
 import userRouter from './routes/user.route.js';
 import productRouter from './routes/product.routes.js';
 import orderRouter from './routes/order.route.js';
-import morgan from "morgan";
+import paymentRouter from './routes/payment.route.js';
 
 // routes declaration
 app.use('/api/v1/user', userRouter);
 app.use('/api/v1/product', productRouter);
 app.use('/api/v1/order', orderRouter);
+app.use('/api/v1/payment', paymentRouter);
 
 app.get("/", (req, res) => {
   res.send("Hello world");
