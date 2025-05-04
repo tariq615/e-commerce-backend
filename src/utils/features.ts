@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Model, Document } from "mongoose";
 import { InvalidateCacheProps, orderItemsType } from "../types/types.js";
 import { productModel } from "../models/product.model.js";
 import { myCache } from "../app.js";
@@ -64,4 +64,19 @@ export const reduceStock = async (orderItems: orderItemsType[]) => {
     product.stock -= orderItem.quantity;
     await product.save();
   }
+};
+
+// export const getByDateRange = <T extends Document>(
+//   Model: Model<T>,
+//   start: Date,
+//   end: Date
+// ) => Model.find({ createdAt: { $gte: start, $lte: end } });
+
+export const calculatePercentage = (thisMonth: number, lastMonth: number): number => {
+  if (lastMonth === 0) {
+    if (thisMonth === 0) return 0;     // No change
+    return 100;                        // Arbitrary 100% growth when last month was 0
+  }
+  const percentage = (thisMonth / lastMonth) * 100;
+  return Number(percentage.toFixed(2));
 };
