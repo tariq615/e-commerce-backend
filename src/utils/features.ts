@@ -19,7 +19,7 @@ export const connectDB = async () => {
   }
 };
 
-export const invalidateCache = async ({
+export const invalidateCache = ({
   product,
   order,
   admin,

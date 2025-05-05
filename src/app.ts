@@ -6,14 +6,18 @@ import express from 'express';
 import cors from 'cors';
 import { connectDB } from "./utils/features.js";
 import { errorMiddleware } from "./middlewares/error.js";
+import Stripe from "stripe";
 import NodeCache from "node-cache";
 import morgan from "morgan";
 
 
+const port = process.env.PORT || 3000;
+const stripeKey = process.env.STRIPE_KEY || "";
+
 connectDB();
 
-export const myCache = new NodeCache()
-const port = process.env.PORT || 3000;
+export const stripe = new Stripe(stripeKey);
+export const myCache = new NodeCache();
 
 const app = express();
 

@@ -1,8 +1,10 @@
 import e, { Router } from "express";
-import { allCoupons, applyDiscount, newCoupon, getCoupon, updateCoupon, deleteCoupon} from "../controllers/payment.controller.js";
+import { allCoupons, applyDiscount, newCoupon, getCoupon, updateCoupon, deleteCoupon, createPaymentIntent} from "../controllers/payment.controller.js";
 import { adminOnly } from "../middlewares/auth.js";
 
 const router = Router();
+
+router.route("/create").post(createPaymentIntent);
 
 router.route("/discount").get(applyDiscount);
 
