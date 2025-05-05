@@ -400,7 +400,7 @@ const getBarCharts = TryCatch(async (req, res, next) => {
       valueKey: "count",
     });
 
-    const monthlyUsers = getChartData({
+    const monthlyUser = getChartData({
       length: 6,
       today,
       docArr: users,
@@ -416,13 +416,13 @@ const getBarCharts = TryCatch(async (req, res, next) => {
 
     charts = {
       product: monthlyProduct,
-      user: monthlyUsers,
+      user: monthlyUser,
       order: monthlyOrder,
     };
 
     myCache.set(key, JSON.stringify(charts));
   }
-  
+
   res.status(200).json({
     success: true,
     charts,
@@ -431,6 +431,102 @@ const getBarCharts = TryCatch(async (req, res, next) => {
 });
 
 const getLineCharts = TryCatch(async (req, res, next) => {
+  let charts;
+  const key = "admin-line-charts";
 
+  if (myCache.has(key)) {
+    charts = JSON.parse(myCache.get(key) as string);
+  } else {
+    const today = new Date();
+
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(today.getMonth() - 11);
+    twelveMonthsAgo.setDate(1);
+
+    const twelveMonthsProductStat = productModel.aggregate([
+      {
+        $match: getCreatedAtFilter(twelveMonthsAgo, today),
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const twelveMonthsUserStat = userModel.aggregate([
+      {
+        $match: getCreatedAtFilter(twelveMonthsAgo, today),
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const twelveMonthsOrderStat = orderModel.aggregate([
+      {
+        $match: getCreatedAtFilter(twelveMonthsAgo, today),
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          total: { $sum: "$total" },
+          discount: { $sum: "$discount" },
+        },
+      },
+    ]);
+
+    const [products, users, orders] = await Promise.all([
+      twelveMonthsProductStat,
+      twelveMonthsUserStat,
+      twelveMonthsOrderStat,
+    ]);
+
+    const monthlyProduct = getChartData({
+      length: 12,
+      today,
+      docArr: products,
+      valueKey: "count",
+    });
+
+    const monthlyUser = getChartData({
+      length: 12,
+      today,
+      docArr: users,
+      valueKey: "count",
+    });
+
+    const monthOrderTotal = getChartData({
+      length: 12,
+      today,
+      docArr: orders,
+      valueKey: "total",
+    });
+
+    const monthlyOrderDisc = getChartData({
+      length: 12,
+      today,
+      docArr: orders,
+      valueKey: "discount",
+    });
+
+    charts = {
+      product: monthlyProduct,
+      user: monthlyUser,
+      total: monthOrderTotal,
+      discount: monthlyOrderDisc,
+    };
+
+    myCache.set(key, JSON.stringify(charts));
+  }
+  res.status(200).json({
+    success: true,
+    charts,
+    message: "fetched",
+  });
 });
 export { getDashboardStats, getBarCharts, getPieCharts, getLineCharts };
