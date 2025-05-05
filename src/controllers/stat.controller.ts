@@ -3,7 +3,11 @@ import { TryCatch } from "../middlewares/error.js";
 import { orderModel } from "../models/order.model.js";
 import { productModel } from "../models/product.model.js";
 import { userModel } from "../models/user.model.js";
-import { calculatePercentage } from "../utils/features.js";
+import {
+  calculatePercentage,
+  getChartData,
+  getCreatedAtFilter,
+} from "../utils/features.js";
 
 const getDashboardStats = TryCatch(async (req, res, next) => {
   let stats;
@@ -27,47 +31,29 @@ const getDashboardStats = TryCatch(async (req, res, next) => {
       end: new Date(today.getFullYear(), today.getMonth(), 0),
     };
 
-    const thisMonthProductsPromise = productModel.find({
-      createdAt: {
-        $gte: thisMonth.start,
-        $lte: thisMonth.end,
-      },
-    });
+    const thisMonthProductsPromise = productModel.find(
+      getCreatedAtFilter(thisMonth.start, thisMonth.end)
+    );
 
-    const lastMonthProductsPromise = productModel.find({
-      createdAt: {
-        $gte: lastMonth.start,
-        $lte: lastMonth.end,
-      },
-    });
+    const lastMonthProductsPromise = productModel.find(
+      getCreatedAtFilter(lastMonth.start, lastMonth.end)
+    );
 
-    const thisMonthUsersPromise = userModel.find({
-      createdAt: {
-        $gte: thisMonth.start,
-        $lte: thisMonth.end,
-      },
-    });
+    const thisMonthUsersPromise = userModel.find(
+      getCreatedAtFilter(thisMonth.start, thisMonth.end)
+    );
 
-    const lastMonthUsersPromise = userModel.find({
-      createdAt: {
-        $gte: lastMonth.start,
-        $lte: lastMonth.end,
-      },
-    });
+    const lastMonthUsersPromise = userModel.find(
+      getCreatedAtFilter(lastMonth.start, lastMonth.end)
+    );
 
-    const thisMonthOrdersPromise = orderModel.find({
-      createdAt: {
-        $gte: thisMonth.start,
-        $lte: thisMonth.end,
-      },
-    });
+    const thisMonthOrdersPromise = orderModel.find(
+      getCreatedAtFilter(thisMonth.start, thisMonth.end)
+    );
 
-    const lastMonthOrdersPromise = orderModel.find({
-      createdAt: {
-        $gte: lastMonth.start,
-        $lte: lastMonth.end,
-      },
-    });
+    const lastMonthOrdersPromise = orderModel.find(
+      getCreatedAtFilter(lastMonth.start, lastMonth.end)
+    );
 
     const orderRevenueCount = orderModel.aggregate([
       {
@@ -224,7 +210,7 @@ const getDashboardStats = TryCatch(async (req, res, next) => {
   });
 });
 
-const getBarCharts = TryCatch(async (req, res, next) => {
+const getPieCharts = TryCatch(async (req, res, next) => {
   let charts;
 
   const key = "admin-pie-charts";
@@ -348,7 +334,103 @@ const getBarCharts = TryCatch(async (req, res, next) => {
   });
 });
 
-const getPieCharts = TryCatch(async (req, res, next) => {});
+const getBarCharts = TryCatch(async (req, res, next) => {
+  let charts;
+  const key = "admin-bar-charts";
 
-const getLineCharts = TryCatch(async (req, res, next) => {});
+  if (myCache.has(key)) {
+    charts = JSON.parse(myCache.get(key) as string);
+  } else {
+    const today = new Date();
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(today.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(today.getMonth() - 11);
+    twelveMonthsAgo.setDate(1);
+
+    const sixMonthsProductStat = productModel.aggregate([
+      {
+        $match: getCreatedAtFilter(sixMonthsAgo, today),
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const sixMonthsUserStat = userModel.aggregate([
+      {
+        $match: getCreatedAtFilter(sixMonthsAgo, today),
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const twelveMonthsOrderStat = orderModel.aggregate([
+      {
+        $match: getCreatedAtFilter(twelveMonthsAgo, today),
+      },
+      {
+        $group: {
+          _id: { $month: "$createdAt" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const [products, users, orders] = await Promise.all([
+      sixMonthsProductStat,
+      sixMonthsUserStat,
+      twelveMonthsOrderStat,
+    ]);
+
+    const monthlyProduct = getChartData({
+      length: 6,
+      today,
+      docArr: products,
+      valueKey: "count",
+    });
+
+    const monthlyUsers = getChartData({
+      length: 6,
+      today,
+      docArr: users,
+      valueKey: "count",
+    });
+
+    const monthlyOrder = getChartData({
+      length: 12,
+      today,
+      docArr: orders,
+      valueKey: "count",
+    });
+
+    charts = {
+      product: monthlyProduct,
+      user: monthlyUsers,
+      order: monthlyOrder,
+    };
+
+    myCache.set(key, JSON.stringify(charts));
+  }
+  
+  res.status(200).json({
+    success: true,
+    charts,
+    message: "fetched",
+  });
+});
+
+const getLineCharts = TryCatch(async (req, res, next) => {
+
+});
 export { getDashboardStats, getBarCharts, getPieCharts, getLineCharts };

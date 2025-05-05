@@ -6,10 +6,10 @@ const router = Router();
 
 router.route("/stats").get(adminOnly ,getDashboardStats);
 
+router.route("/pie").get(adminOnly, getPieCharts);
+
 router.route("/bar").get(adminOnly ,getBarCharts);
 
-router.route("/pie").get(getPieCharts);
-
-router.route("/line").get(getLineCharts);
+router.route("/line").get(adminOnly, getLineCharts);
 
 export default router;

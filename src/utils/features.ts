@@ -1,4 +1,4 @@
-import mongoose, { Model, Document } from "mongoose";
+import mongoose, { Document } from "mongoose";
 import { InvalidateCacheProps, orderItemsType } from "../types/types.js";
 import { productModel } from "../models/product.model.js";
 import { myCache } from "../app.js";
@@ -66,17 +66,60 @@ export const reduceStock = async (orderItems: orderItemsType[]) => {
   }
 };
 
-// export const getByDateRange = <T extends Document>(
-//   Model: Model<T>,
-//   start: Date,
-//   end: Date
-// ) => Model.find({ createdAt: { $gte: start, $lte: end } });
+export function getCreatedAtFilter(start: Date, end: Date) {
+  return {
+    createdAt: {
+      $gte: start,
+      $lte: end,
+    },
+  };
+}
 
-export const calculatePercentage = (thisMonth: number, lastMonth: number): number => {
+export const calculatePercentage = (
+  thisMonth: number,
+  lastMonth: number
+): number => {
   if (lastMonth === 0) {
-    if (thisMonth === 0) return 0;     // No change
-    return 100;                        // Arbitrary 100% growth when last month was 0
+    if (thisMonth === 0) return 0; // No change
+    return 100; // Arbitrary 100% growth when last month was 0
   }
   const percentage = (thisMonth / lastMonth) * 100;
   return Number(percentage.toFixed(2));
 };
+
+type PropsData = {
+  length: number;
+  docArr: {
+    _id: number;
+    [key: string]: number;  // string ke key to ha but kis naam se to usko access krne ke liye valuekey assign kr waya 
+  }[];
+  valueKey: string;  
+  today: Date;
+};
+
+export const getChartData = ({ length, docArr, today, valueKey }: PropsData) => {
+  const data = new Array(length).fill(0);
+
+  docArr.forEach((order) => {
+    const monthIndex = (today.getMonth() - (order._id - 1) + 12) % 12;
+    const arrayIndex = (length - 1) - monthIndex;
+
+    if (arrayIndex >= 0 && arrayIndex < 12) {
+      data[arrayIndex] = order[valueKey];
+    }
+  });
+  return data;
+};
+//   const data = new Array(length).fill(0);
+
+//   docArr.forEach((order) => {
+//     const monthIndex = (today.getMonth() - (order._id - 1) + 12) % 12;
+//     const arrayIndex = (length - 1) - monthIndex;
+
+//     if (arrayIndex >= 0 && arrayIndex < length) {
+//       data[arrayIndex] = order.monthlyTotal;
+//     }
+//   });
+
+//   return data;
+// };
