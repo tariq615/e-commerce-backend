@@ -56,8 +56,8 @@ export type shippingInfoType = {
   city: string;
   state: string;
   country: string;
-  pinCode: number;
-  phoneNo: number;
+  pinCode: string;
+  phoneNo: string;
 }
 
 export type orderItemsType = {
@@ -73,8 +73,8 @@ export interface NewOrderRequestBody {
   user: string,
   subtotal: number,
   tax: number,
-  shippingCharges: number,
-  discount: number,
+  shippingCharges: number | 0,
+  discount: number | 0,
   total: number,
   status: string,
   orderItems: orderItemsType[],

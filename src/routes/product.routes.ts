@@ -22,12 +22,8 @@ router.route("/categories").get(getAllCategories);
 
 router.route("/admin-products").get(adminOnly, getAdminProducts);
 
-router.route("/searchs").get(searchProducts)
+router.route("/all").get(searchProducts)
 
-router.route("/:id").get(getSingleProduct);
-
-router.route("/update/:id").put(adminOnly, singleUpload, updateProduct);
-
-router.route("/delete/:id").delete(adminOnly, deleteProduct);
+router.route("/:id").get(getSingleProduct).put(adminOnly, singleUpload, updateProduct).delete(adminOnly, deleteProduct);
 
 export default router;

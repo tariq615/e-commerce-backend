@@ -70,15 +70,26 @@ const newOrder = TryCatch(
       total,
     } = req.body;
 
+    console.log(
+      shippingInfo,
+      orderItems,
+      user,
+      subtotal,
+      tax,
+      shippingCharges,
+      discount,
+      total
+    );
+
     if (
-      !shippingInfo ||
-      !orderItems ||
-      !user ||
-      !subtotal ||
-      !tax ||
-      !shippingCharges ||
-      !discount ||
-      !total
+      shippingInfo === undefined ||
+      orderItems === undefined ||
+      user === undefined ||
+      subtotal < 0 ||
+      tax < 0 ||
+      shippingCharges < 0 ||
+      discount < 0 ||
+      total <= 0
     )
       return next(new ErrorHandler("Please fill all fields", 400));
 
@@ -107,7 +118,7 @@ const newOrder = TryCatch(
 
     res.status(201).json({
       success: true,
-      order,
+      message: "order created successfully",
     });
   }
 );
@@ -143,7 +154,7 @@ const processOrder = TryCatch(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    order,
+    message: "order processed successfully",
   });
 });
 

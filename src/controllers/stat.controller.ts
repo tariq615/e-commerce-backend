@@ -197,7 +197,7 @@ const getDashboardStats = TryCatch(async (req, res, next) => {
       },
       categoryCount,
       userRatio,
-      modifiedTransaction,
+      latestTransaction: modifiedTransaction,
     };
 
     myCache.set(key, JSON.stringify(stats));
@@ -206,7 +206,6 @@ const getDashboardStats = TryCatch(async (req, res, next) => {
   res.status(200).json({
     success: true,
     stats,
-    message: "Dashboard stats",
   });
 });
 
@@ -308,7 +307,7 @@ const getPieCharts = TryCatch(async (req, res, next) => {
 
     const usersAgeGroup = {
       teen: allUsers.filter((i) => i.age < 20).length,
-      aduld: allUsers.filter((i) => i.age >= 20 && i.age < 40).length,
+      adult: allUsers.filter((i) => i.age >= 20 && i.age < 40).length,
       old: allUsers.filter((i) => i.age >= 40).length,
     };
 
@@ -320,7 +319,7 @@ const getPieCharts = TryCatch(async (req, res, next) => {
       orderFullfillment,
       categories,
       stockAvailability,
-      netMargin,
+      revenueDistribution,
       usersAgeGroup,
       adminCustomerRatio,
     };
@@ -330,7 +329,6 @@ const getPieCharts = TryCatch(async (req, res, next) => {
   res.status(200).json({
     sucess: true,
     charts,
-    message: "fetched successfully",
   });
 });
 

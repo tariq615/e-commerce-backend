@@ -115,7 +115,7 @@ const newProduct = TryCatch(
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
-      product,
+      // product,
     });
   }
 );
@@ -140,11 +140,12 @@ const updateProduct = TryCatch(async (req, res, next) => {
   await product.save(); // ✅ await the save
 
   invalidateCache({ product: true, productId: id, admin: true });
-
-  rm(oldImage, (err) => {
-    if (err) console.error("Failed to delete old image:", err);
-    else console.log("Old image deleted successfully");
-  });
+  if (image) {
+    rm(oldImage, (err) => {
+      if (err) console.error("Failed to delete old image:", err);
+      else console.log("Old image deleted successfully");
+    });
+  }
 
   return res.status(200).json({
     success: true,
@@ -159,7 +160,7 @@ const deleteProduct = TryCatch(async (req, res, next) => {
   if (!product) return next(new ErrorHandler("Product not found", 404));
 
   const image = product.image;
-  const deleted = await productModel.findByIdAndDelete(id);
+  const deleted = await product.deleteOne();
   if (!deleted) return next(new ErrorHandler("Product deletion failed", 500));
 
   invalidateCache({ product: true, productId: id, admin: true });
@@ -204,9 +205,11 @@ const searchProducts = TryCatch(
       .skip(skip)
       .limit(limit);
 
+    const filteredOnlyProductPromise = productModel.find(baseQuery);
+
     const [productsFetched, filteredOnlyProduct] = await Promise.all([
       productsPromise,
-      productModel.find(baseQuery),
+      filteredOnlyProductPromise,
     ]);
 
     const products = productsFetched;

@@ -35,7 +35,7 @@ const newUser = TryCatch(
     });
 
     res.status(201).json({
-      status: "success",
+      success: true,
       message: "User created successfully",
     });
   }

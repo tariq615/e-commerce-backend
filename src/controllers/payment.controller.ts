@@ -11,7 +11,7 @@ const createPaymentIntent = TryCatch(async (req, res, next) => {
   }
 
   const paymentIntent = await stripe.paymentIntents.create({
-    amount: Number(343) * 100,
+    amount: Number(amount) * 100,
     currency: "pkr"
   })
 
