@@ -10,6 +10,10 @@ import {
 } from "../types/types.js";
 import { myCache } from "../app.js";
 import { invalidateCache } from "../utils/features.js";
+import {
+  deleteFromCloudinary,
+  uploadToCloudinary,
+} from "../utils/cloudinary.js";
 
 const getLatestProducts = TryCatch(async (req, res, next) => {
   let products;
@@ -88,22 +92,31 @@ const newProduct = TryCatch(
     next: NextFunction
   ) => {
     const { name, price, stock, category } = req.body;
-    const image = req.file?.path;
+    const images = req.files as Express.Multer.File[] | undefined;
 
-    if (!image) return next(new ErrorHandler("Image is required", 400));
+    if (!images) return next(new ErrorHandler("Image is required", 400));
+
+    if (images.length < 1) {
+      return next(new ErrorHandler("At least one image is required", 400));
+    }
+
+    if (images.length > 5) {
+      return next(new ErrorHandler("Maximum 5 images are allowed", 400));
+    }
 
     if (!name || !price || !stock || !category) {
-      rm(image, (err) => {
-        console.log("deleted");
-      });
       return next(new ErrorHandler("provide all fields", 400));
     }
+
+    const imageURL = await uploadToCloudinary(images);
+    console.log(imageURL);
+
     const product = await productModel.create({
       name,
       price,
       stock,
       category,
-      image,
+      images: imageURL,
     });
 
     if (!product) {
@@ -127,25 +140,27 @@ const updateProduct = TryCatch(async (req, res, next) => {
   if (!product) return next(new ErrorHandler("Product not found", 404));
 
   const { name, price, stock, category } = req.body;
-  const image = req.file?.path;
 
-  const oldImage = product.image;
+  const images = req.files as Express.Multer.File[] | undefined;
+
+  if (images && images.length > 0) {
+    const imageUrl = await uploadToCloudinary(images);
+
+    const oldImageIds = product.images.map((img) => img.public_id);
+
+    await deleteFromCloudinary(oldImageIds);
+
+    product.images = imageUrl; // Update the images with new ones
+  }
 
   if (name) product.name = name;
   if (price) product.price = price;
   if (stock) product.stock = stock;
   if (category) product.category = category;
-  if (image) product.image = image;
 
   await product.save(); // ✅ await the save
 
   invalidateCache({ product: true, productId: id, admin: true });
-  if (image) {
-    rm(oldImage, (err) => {
-      if (err) console.error("Failed to delete old image:", err);
-      else console.log("Old image deleted successfully");
-    });
-  }
 
   return res.status(200).json({
     success: true,
@@ -159,16 +174,14 @@ const deleteProduct = TryCatch(async (req, res, next) => {
   const product = await productModel.findById(id);
   if (!product) return next(new ErrorHandler("Product not found", 404));
 
-  const image = product.image;
+  const imgIds = product.images.map((img) => img.public_id);
+
+  await deleteFromCloudinary(imgIds);
+
   const deleted = await product.deleteOne();
   if (!deleted) return next(new ErrorHandler("Product deletion failed", 500));
 
   invalidateCache({ product: true, productId: id, admin: true });
-
-  rm(image, (err) => {
-    if (err) console.error("Failed to delete image:", err);
-    else console.log("Image deleted successfully");
-  });
 
   res.status(200).json({
     success: true,

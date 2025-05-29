@@ -9,12 +9,12 @@ import {
   deleteProduct,
   searchProducts
 } from "../controllers/product.controller.js";
-import { singleUpload } from "../middlewares/multer.js";
+import { multiUpload, singleUpload } from "../middlewares/multer.js";
 import { adminOnly } from "../middlewares/auth.js";
 
 const router = Router();
 
-router.route("/new").post(adminOnly, singleUpload, newProduct);
+router.route("/new").post(adminOnly, multiUpload, newProduct);
 
 router.route("/latest").get(getLatestProducts);
 
@@ -24,6 +24,6 @@ router.route("/admin-products").get(adminOnly, getAdminProducts);
 
 router.route("/all").get(searchProducts)
 
-router.route("/:id").get(getSingleProduct).put(adminOnly, singleUpload, updateProduct).delete(adminOnly, deleteProduct);
+router.route("/:id").get(getSingleProduct).put(adminOnly, multiUpload, updateProduct).delete(adminOnly, deleteProduct);
 
 export default router;

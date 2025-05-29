@@ -10,7 +10,6 @@ import Stripe from "stripe";
 import NodeCache from "node-cache";
 import morgan from "morgan";
 
-
 const port = process.env.PORT || 3000;
 const stripeKey = process.env.STRIPE_KEY || "";
 

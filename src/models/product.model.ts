@@ -1,14 +1,17 @@
 import mongoose from "mongoose";
 
 export interface IProduct {
-    name: string;
-    image: string;
-    price: number;
-    stock: number;
-    category: string;
-    // description: string;
-    // ratings: number;
-    // numOfReviews: number;
+  name: string;
+  images: {
+    public_id: string;
+    url: string;
+  }[];
+  price: number;
+  stock: number;
+  category: string;
+  // description: string;
+  // ratings: number;
+  // numOfReviews: number;
 }
 
 const postSchema = new mongoose.Schema(
@@ -17,22 +20,18 @@ const postSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please enter Name"],
     },
-    image: {
-        type: String,
-        required: [true, "photo is required"],
-    },
-    // photos: [
-    //   {
-    //     public_id: {
-    //       type: String,
-    //       required: [true, "Please enter Public ID"],
-    //     },
-    //     url: {
-    //       type: String,
-    //       required: [true, "Please enter URL"],
-    //     },
-    //   },
-    // ],
+    images: [
+      {
+        public_id: {
+          type: String,
+          required: [true, "Please enter Public ID"],
+        },
+        url: {
+          type: String,
+          required: [true, "Please enter URL"],
+        },
+      },
+    ],
     price: {
       type: Number,
       required: [true, "Please enter Price"],
