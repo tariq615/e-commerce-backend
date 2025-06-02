@@ -9,8 +9,8 @@ export interface IProduct {
   price: number;
   stock: number;
   category: string;
-  // description: string;
-  // ratings: number;
+  description: string;
+  ratings: number;
   // numOfReviews: number;
 }
 
@@ -45,16 +45,14 @@ const postSchema = new mongoose.Schema(
       required: [true, "Please enter Category"],
       trim: true,
     },
-
-    // description: {
-    //   type: String,
-    //   required: [true, "Please enter Description"],
-    // },
-
-    // ratings: {
-    //   type: Number,
-    //   default: 0,
-    // },
+    description: {
+      type: String,
+      required: [true, "Please enter Description"],
+    },
+    ratings: {
+      type: Number,
+      default: 0,
+    },
 
     // numOfReviews: {
     //   type: Number,

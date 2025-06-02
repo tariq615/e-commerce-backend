@@ -91,7 +91,7 @@ const newProduct = TryCatch(
     res: Response,
     next: NextFunction
   ) => {
-    const { name, price, stock, category } = req.body;
+    const { name, price, stock, category, description } = req.body;
     const images = req.files as Express.Multer.File[] | undefined;
 
     if (!images) return next(new ErrorHandler("Image is required", 400));
@@ -104,15 +104,16 @@ const newProduct = TryCatch(
       return next(new ErrorHandler("Maximum 5 images are allowed", 400));
     }
 
-    if (!name || !price || !stock || !category) {
+    if (!name || !price || !stock || !category || !description) {
       return next(new ErrorHandler("provide all fields", 400));
     }
 
     const imageURL = await uploadToCloudinary(images);
-    console.log(imageURL);
+    // console.log(imageURL);
 
     const product = await productModel.create({
       name,
+      description,
       price,
       stock,
       category,
@@ -128,7 +129,6 @@ const newProduct = TryCatch(
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
-      // product,
     });
   }
 );
@@ -139,7 +139,7 @@ const updateProduct = TryCatch(async (req, res, next) => {
   const product = await productModel.findById(id);
   if (!product) return next(new ErrorHandler("Product not found", 404));
 
-  const { name, price, stock, category } = req.body;
+  const { name, price, stock, category, description } = req.body;
 
   const images = req.files as Express.Multer.File[] | undefined;
 
@@ -157,6 +157,7 @@ const updateProduct = TryCatch(async (req, res, next) => {
   if (price) product.price = price;
   if (stock) product.stock = stock;
   if (category) product.category = category;
+  if (description) product.description = description;
 
   await product.save(); // ✅ await the save
 
@@ -179,6 +180,7 @@ const deleteProduct = TryCatch(async (req, res, next) => {
   await deleteFromCloudinary(imgIds);
 
   const deleted = await product.deleteOne();
+  
   if (!deleted) return next(new ErrorHandler("Product deletion failed", 500));
 
   invalidateCache({ product: true, productId: id, admin: true });

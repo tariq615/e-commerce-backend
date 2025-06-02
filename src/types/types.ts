@@ -12,10 +12,11 @@ export interface NewUserRequestBody {
 export interface NewProductRequestBody {
   _id: string;
   name: string;
+  description: string;
   price: number;
   stock: number;
   category: string;
-  image: string;
+  images: string[];
 }
 
 export type ControllerType = (
@@ -23,7 +24,6 @@ export type ControllerType = (
   res: Response,
   next: NextFunction
 ) => Promise<void | Response<any, Record<string, any>>>;
-
 
 export type SearchRequestQuery = {
   search?: string;
@@ -43,13 +43,13 @@ export interface BaseQuery {
 }
 
 export type InvalidateCacheProps = {
-  product?: boolean,
-  order?: boolean,
-  admin?: boolean,
-  userId?: string,
-  orderId?: string,
-  productId?: string[] | string,
-}
+  product?: boolean;
+  order?: boolean;
+  admin?: boolean;
+  userId?: string;
+  orderId?: string;
+  productId?: string[] | string;
+};
 
 export type shippingInfoType = {
   address: string;
@@ -58,7 +58,7 @@ export type shippingInfoType = {
   country: string;
   pinCode: string;
   phoneNo: string;
-}
+};
 
 export type orderItemsType = {
   name: string;
@@ -66,16 +66,16 @@ export type orderItemsType = {
   price: number;
   quantity: number;
   productId: string;
-}
+};
 
 export interface NewOrderRequestBody {
-  shippingInfo: shippingInfoType,
-  user: string,
-  subtotal: number,
-  tax: number,
-  shippingCharges: number | 0,
-  discount: number | 0,
-  total: number,
-  status: string,
-  orderItems: orderItemsType[],
+  shippingInfo: shippingInfoType;
+  user: string;
+  subtotal: number;
+  tax: number;
+  shippingCharges: number | 0;
+  discount: number | 0;
+  total: number;
+  status: string;
+  orderItems: orderItemsType[];
 }
