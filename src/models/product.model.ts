@@ -11,7 +11,7 @@ export interface IProduct {
   category: string;
   description: string;
   ratings: number;
-  // numOfReviews: number;
+  numOfReviews: number;
 }
 
 const postSchema = new mongoose.Schema(
@@ -53,11 +53,10 @@ const postSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-
-    // numOfReviews: {
-    //   type: Number,
-    //   default: 0,
-    // },
+    numOfReviews: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

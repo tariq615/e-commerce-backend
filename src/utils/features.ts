@@ -1,8 +1,35 @@
-import mongoose, { Document } from "mongoose";
+import mongoose from "mongoose";
 import { InvalidateCacheProps, orderItemsType } from "../types/types.js";
 import { productModel } from "../models/product.model.js";
-import { myCache } from "../app.js";
+import { myCache, redis } from "../app.js";
+import { reviewModel } from "../models/review.model.js";
+import { Redis } from "ioredis";
 // import ErrorHandler from "./utility-class.js";
+
+export const findAverageRatings = async (
+  productId: mongoose.Types.ObjectId
+) => {
+  let totalRatings = 0;
+
+  const reviews = await reviewModel.find({ product: productId });
+
+  reviews.forEach((review) => {
+    totalRatings += review.rating;
+  });
+
+  const averageRatings = Math.floor(totalRatings / reviews.length) || 0;
+
+  return { ratings: averageRatings, numOfReviews: reviews.length };
+};
+
+export const connectRedis = (redisURI: string) => {
+  const redis = new Redis(redisURI);
+
+  redis.on("connect", () => console.log("Redis connected successfully!"));
+  redis.on("error", (e) => console.error("Redis connection error:", e));
+
+  return redis;
+};
 
 export const connectDB = async () => {
   try {
@@ -19,14 +46,19 @@ export const connectDB = async () => {
   }
 };
 
-export const invalidateCache = ({
+export const invalidateCache = async ({
   product,
   order,
   admin,
+  review,
   userId,
   orderId,
   productId,
 }: InvalidateCacheProps) => {
+  if (review) {
+    await redis.del([`reviews-${productId}`]);
+  }
+
   if (product) {
     const productKeys: string[] = [
       "latest-products",
@@ -39,7 +71,7 @@ export const invalidateCache = ({
     if (typeof productId === "object")
       productId.forEach((id) => productKeys.push(`product-${id}`));
 
-    myCache.del(productKeys);
+    await redis.del(productKeys);
   }
 
   if (order) {
@@ -49,12 +81,16 @@ export const invalidateCache = ({
       `my-orders-${userId}`,
     ];
 
-    myCache.del(orderKeys);
+    await redis.del(orderKeys);
   }
 
   if (admin) {
-    myCache.del(["admin-stats", "admin-pie-charts", "admin-bar-charts", "admin-line-charts"])
-
+    await redis.del([
+      "admin-stats",
+      "admin-pie-charts",
+      "admin-bar-charts",
+      "admin-line-charts",
+    ]);
   }
 };
 
@@ -93,18 +129,23 @@ type PropsData = {
   length: number;
   docArr: {
     _id: number;
-    [key: string]: number;  // string ke key to ha but kis naam se to usko access krne ke liye valuekey assign kr waya 
+    [key: string]: number; // string ke key to ha but kis naam se to usko access krne ke liye valuekey assign kr waya
   }[];
-  valueKey: string;  
+  valueKey: string;
   today: Date;
 };
 
-export const getChartData = ({ length, docArr, today, valueKey }: PropsData) => {
+export const getChartData = ({
+  length,
+  docArr,
+  today,
+  valueKey,
+}: PropsData) => {
   const data = new Array(length).fill(0);
 
   docArr.forEach((order) => {
     const monthIndex = (today.getMonth() - (order._id - 1) + 12) % 12;
-    const arrayIndex = (length - 1) - monthIndex;
+    const arrayIndex = length - 1 - monthIndex;
 
     if (arrayIndex >= 0 && arrayIndex < 12) {
       data[arrayIndex] = order[valueKey];

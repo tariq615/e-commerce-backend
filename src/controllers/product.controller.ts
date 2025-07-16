@@ -1,27 +1,30 @@
 import { NextFunction, Request, Response } from "express";
+import { redis, redisTTL } from "../app.js";
 import { TryCatch } from "../middlewares/error.js";
-import ErrorHandler from "../utils/utility-class.js";
 import { productModel } from "../models/product.model.js";
-import { rm } from "fs";
+import { reviewModel } from "../models/review.model.js";
+import { userModel } from "../models/user.model.js";
 import {
   BaseQuery,
   NewProductRequestBody,
   SearchRequestQuery,
 } from "../types/types.js";
-import { myCache } from "../app.js";
-import { invalidateCache } from "../utils/features.js";
 import {
   deleteFromCloudinary,
   uploadToCloudinary,
 } from "../utils/cloudinary.js";
+import { findAverageRatings, invalidateCache } from "../utils/features.js";
+import ErrorHandler from "../utils/utility-class.js";
 
 const getLatestProducts = TryCatch(async (req, res, next) => {
   let products;
-  if (myCache.has("latest-products")) {
-    products = JSON.parse(myCache.get("latest-products") as string);
-  } else {
+
+  products = await redis.get("latest-products");
+
+  if (products) products = JSON.parse(products);
+  else {
     products = await productModel.find({}).sort({ createdAt: -1 }).limit(5);
-    myCache.set("latest-products", JSON.stringify(products));
+    await redis.setex("latest-products", redisTTL, JSON.stringify(products));
   }
 
   return res.status(200).json({
@@ -33,11 +36,13 @@ const getLatestProducts = TryCatch(async (req, res, next) => {
 
 const getAllCategories = TryCatch(async (req, res, next) => {
   let categories;
-  if (myCache.has("categories")) {
-    categories = JSON.parse(myCache.get("categories") as string);
-  } else {
+
+  categories = await redis.get("categories");
+
+  if (categories) categories = JSON.parse(categories);
+  else {
     categories = await productModel.distinct("category"); // it will make easy to get all categories rather than using find and then map to get all categories.
-    myCache.set("categories", JSON.stringify(categories));
+    await redis.setex("categories", redisTTL, JSON.stringify(categories));
   }
 
   return res.status(200).json({
@@ -49,11 +54,13 @@ const getAllCategories = TryCatch(async (req, res, next) => {
 
 const getAdminProducts = TryCatch(async (req, res, next) => {
   let products;
-  if (myCache.has("admin-products")) {
-    products = JSON.parse(myCache.get("admin-products") as string);
-  } else {
+
+  products = await redis.get("admin-products");
+
+  if (products) products = JSON.parse(products);
+  else {
     products = await productModel.find({});
-    myCache.set("admin-products", JSON.stringify(products));
+    await redis.setex("admin-products", redisTTL, JSON.stringify(products));
   }
 
   return res.status(200).json({
@@ -64,18 +71,18 @@ const getAdminProducts = TryCatch(async (req, res, next) => {
 });
 
 const getSingleProduct = TryCatch(async (req, res, next) => {
-  const { id } = req.params;
-
   let product;
+  const { id } = req.params;
+  const key = `product-${id}`;
 
-  if (myCache.has(`product-${id}`)) {
-    product = JSON.parse(myCache.get(`product-${id}`) as string);
-  } else {
+  product = await redis.get(key);
+  if (product) product = JSON.parse(product);
+  else {
     product = await productModel.findById(id);
     if (!product) {
       return next(new ErrorHandler("Product not found", 404));
     }
-    myCache.set(`product-${id}`, JSON.stringify(product));
+    await redis.setex(key, redisTTL, JSON.stringify(product));
   }
 
   return res.status(200).json({
@@ -124,7 +131,7 @@ const newProduct = TryCatch(
       return next(new ErrorHandler("Product creation failed", 500));
     }
 
-    invalidateCache({ product: true, admin: true });
+    await invalidateCache({ product: true, admin: true });
 
     return res.status(201).json({
       success: true,
@@ -161,7 +168,7 @@ const updateProduct = TryCatch(async (req, res, next) => {
 
   await product.save(); // ✅ await the save
 
-  invalidateCache({ product: true, productId: id, admin: true });
+  await invalidateCache({ product: true, productId: id, admin: true });
 
   return res.status(200).json({
     success: true,
@@ -180,10 +187,10 @@ const deleteProduct = TryCatch(async (req, res, next) => {
   await deleteFromCloudinary(imgIds);
 
   const deleted = await product.deleteOne();
-  
+
   if (!deleted) return next(new ErrorHandler("Product deletion failed", 500));
 
-  invalidateCache({ product: true, productId: id, admin: true });
+  await invalidateCache({ product: true, productId: id, admin: true });
 
   res.status(200).json({
     success: true,
@@ -200,35 +207,50 @@ const searchProducts = TryCatch(
     const { search, sort, category, price } = req.query;
 
     const page = Number(req.query.page) || 1;
-    const limit = Number(process.env.PRODUCT_PER_PAGE) || 8;
-    const skip = (page - 1) * limit;
 
-    const baseQuery: BaseQuery = {};
-    if (search) {
-      baseQuery.name = { $regex: search, $options: "i" };
+    const key = `prducts-${search}-${sort}-${category}-${price}-${page}`;
+
+    let products;
+    let totalPage;
+
+    const cachedData = await redis.get(key);
+    if (cachedData) {
+      const data = JSON.parse(cachedData);
+      totalPage = data.totalPage;
+      products = data.products;
+    } else {
+      const limit = Number(process.env.PRODUCT_PER_PAGE) || 8;
+      const skip = (page - 1) * limit;
+
+      const baseQuery: BaseQuery = {};
+      if (search) {
+        baseQuery.name = { $regex: search, $options: "i" };
+      }
+      if (category) {
+        baseQuery.category = category;
+      }
+      if (price) {
+        baseQuery.price = { $lte: Number(price) };
+      }
+
+      const productsPromise = await productModel
+        .find(baseQuery)
+        .sort({ createdAt: sort === "asc" ? 1 : -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const filteredOnlyProductPromise = productModel.find(baseQuery);
+
+      const [productsFetched, filteredOnlyProduct] = await Promise.all([
+        productsPromise,
+        filteredOnlyProductPromise,
+      ]);
+
+      products = productsFetched;
+      totalPage = Math.ceil(filteredOnlyProduct.length / limit);
+
+      await redis.setex(key, 30, JSON.stringify({ products, totalPage }));
     }
-    if (category) {
-      baseQuery.category = category;
-    }
-    if (price) {
-      baseQuery.price = { $lte: Number(price) };
-    }
-
-    const productsPromise = await productModel
-      .find(baseQuery)
-      .sort({ createdAt: sort === "asc" ? 1 : -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const filteredOnlyProductPromise = productModel.find(baseQuery);
-
-    const [productsFetched, filteredOnlyProduct] = await Promise.all([
-      productsPromise,
-      filteredOnlyProductPromise,
-    ]);
-
-    const products = productsFetched;
-    const totalPage = Math.ceil(filteredOnlyProduct.length / limit);
 
     return res.status(200).json({
       success: true,
@@ -238,6 +260,131 @@ const searchProducts = TryCatch(
     });
   }
 );
+
+const allReviewsOfProduct = TryCatch(async (req, res, next) => {
+  const productId = req.params.id;
+  if (!productId) {
+    return next(new ErrorHandler("Product ID is required", 400));
+  }
+  let reviews;
+  const key = `reviews-${productId}`;
+
+  reviews = await redis.get(key);
+
+  if (reviews) reviews = JSON.parse(reviews);
+  else {
+  reviews = await reviewModel
+    .find({
+      product: productId,
+    })
+    .populate("user", "name photo")
+    .sort({ updatedAt: -1 });
+
+  await redis.setex(key, redisTTL, JSON.stringify(reviews));
+  }
+
+  return res.status(200).json({
+    success: true,
+    reviews,
+  });
+});
+
+const newReview = TryCatch(async (req, res, next) => {
+  const user = await userModel.findById(req.query.id);
+  if (!user) return next(new ErrorHandler("Not Logged In", 404));
+
+  const product = await productModel.findById(req.params.id);
+  if (!product) return next(new ErrorHandler("Product Not Found", 404));
+
+  const { comment, rating } = req.body;
+
+  if (!rating) {
+    return next(new ErrorHandler("Please provide rating", 400));
+  }
+
+  if (rating < 1 || rating > 5) {
+    return next(new ErrorHandler("Rating must be between 1 and 5", 400));
+  }
+
+  const alreadyReviewed = await reviewModel.findOne({
+    user: user._id,
+    product: product._id,
+  });
+
+  if (alreadyReviewed) {
+    if (comment) alreadyReviewed.comment = comment;
+    alreadyReviewed.rating = rating;
+
+    await alreadyReviewed.save();
+  } else {
+    const review = await reviewModel.create({
+      user: user._id,
+      product: product._id,
+      comment,
+      rating,
+    });
+
+    if (!review) {
+      return next(new ErrorHandler("Review creation failed", 500));
+    }
+  }
+
+  const { ratings, numOfReviews } = await findAverageRatings(product._id);
+
+  product.ratings = ratings;
+  product.numOfReviews = numOfReviews;
+
+  await product.save();
+
+  invalidateCache({
+    product: true,
+    productId: String(product._id),
+    admin: true,
+    review: true,
+  });
+
+  return res.status(alreadyReviewed ? 200 : 201).json({
+    success: true,
+    message: alreadyReviewed ? "Review Update" : "Review Added",
+  });
+});
+
+const deleteReview = TryCatch(async (req, res, next) => {
+  const user = await userModel.findById(req.query.id);
+
+  if (!user) return next(new ErrorHandler("Not Logged In", 404));
+
+  const review = await reviewModel.findById(req.params.id);
+  if (!review) return next(new ErrorHandler("Review Not Found", 404));
+
+  const isAuthenticUser = review.user.toString() === user._id.toString();
+
+  if (!isAuthenticUser) return next(new ErrorHandler("Not Authorized", 401));
+
+  await review.deleteOne();
+
+  const product = await productModel.findById(review.product);
+
+  if (!product) return next(new ErrorHandler("Product Not Found", 404));
+
+  const { ratings, numOfReviews } = await findAverageRatings(product._id);
+
+  product.ratings = ratings;
+  product.numOfReviews = numOfReviews;
+
+  await product.save();
+
+  invalidateCache({
+    product: true,
+    productId: String(product._id),
+    admin: true,
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Review Deleted",
+  });
+});
 
 // const generateRandomProducts = async (count: number = 10) => {
 //     const products = [];
@@ -277,12 +424,16 @@ const searchProducts = TryCatch(
 
 // deleteRandomsProducts(120)
 export {
-  newProduct,
-  getLatestProducts,
-  getAllCategories,
-  getAdminProducts,
-  getSingleProduct,
-  updateProduct,
+  allReviewsOfProduct,
   deleteProduct,
+  deleteReview,
+  getAdminProducts,
+  getAllCategories,
+  getLatestProducts,
+  getSingleProduct,
+  newProduct,
+  newReview,
   searchProducts,
+  updateProduct
 };
+

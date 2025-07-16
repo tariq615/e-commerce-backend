@@ -4,7 +4,7 @@ dotenv.config({
 });
 import express from 'express';
 import cors from 'cors';
-import { connectDB } from "./utils/features.js";
+import { connectDB, connectRedis } from "./utils/features.js";
 import { errorMiddleware } from "./middlewares/error.js";
 import Stripe from "stripe";
 import NodeCache from "node-cache";
@@ -12,9 +12,12 @@ import morgan from "morgan";
 
 const port = process.env.PORT || 3000;
 const stripeKey = process.env.STRIPE_KEY || "";
+const redisURI = process.env.REDIS_URI || "";
+export const redisTTL = process.env.REDIS_TTL || 60 * 60 * 4;
 
 connectDB();
 
+export const redis = connectRedis(redisURI);
 export const stripe = new Stripe(stripeKey);
 export const myCache = new NodeCache();
 
