@@ -12,7 +12,7 @@ import morgan from "morgan";
 
 const port = process.env.PORT || 3000;
 const stripeKey = process.env.STRIPE_KEY || "";
-const redisURI = process.env.REDIS_URI || "";
+const redisURI = process.env.REDIS_URL || "";
 export const redisTTL = process.env.REDIS_TTL || 60 * 60 * 4;
 
 connectDB();
